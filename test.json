@@ -1,0 +1,93 @@
+[
+    {
+        "_id": "689869ba33139cc4f5cafda2",
+        "name": "Medicines",
+        "slug": "medicines",
+        "description": "Allopathic and general medicines.",
+        "createdAt": "2025-08-10T09:43:22.874Z",
+        "updatedAt": "2025-08-10T09:43:22.874Z",
+        "__v": 0
+    },
+    {
+        "_id": "689869d233139cc4f5cafda5",
+        "name": "Personal Care",
+        "slug": "personal-care",
+        "description": "Skincare, haircare, and personal hygiene products.",
+        "createdAt": "2025-08-10T09:43:46.956Z",
+        "updatedAt": "2025-08-10T09:43:46.956Z",
+        "__v": 0
+    },
+    {
+        "_id": "689869db33139cc4f5cafda8",
+        "name": "Baby Care",
+        "slug": "baby-care",
+        "description": "Products for infants and toddlers.",
+        "createdAt": "2025-08-10T09:43:55.419Z",
+        "updatedAt": "2025-08-10T09:43:55.419Z",
+        "__v": 0
+    },
+    {
+        "_id": "689869e533139cc4f5cafdab",
+        "name": "Health Devices",
+        "slug": "health-devices",
+        "description": "Monitoring and health management devices.",
+        "createdAt": "2025-08-10T09:44:05.002Z",
+        "updatedAt": "2025-08-10T09:44:05.002Z",
+        "__v": 0
+    },
+    {
+        "_id": "689869ed33139cc4f5cafdae",
+        "name": "Vitamins & Supplements",
+        "slug": "vitamins-supplements",
+        "description": "Nutritional supplements and vitamins.",
+        "createdAt": "2025-08-10T09:44:13.032Z",
+        "updatedAt": "2025-08-10T09:44:13.032Z",
+        "__v": 0
+    },
+    {
+        "_id": "68986a1d33139cc4f5cafdb1",
+        "name": "Herbal Wellness",
+        "slug": "herbal-wellness",
+        "description": "Ayurvedic and herbal health products.",
+        "createdAt": "2025-08-10T09:45:01.571Z",
+        "updatedAt": "2025-08-10T09:45:01.571Z",
+        "__v": 0
+    },
+    {
+        "_id": "68986a2633139cc4f5cafdb4",
+        "name": "Health Foods",
+        "slug": "health-foods",
+        "description": "Healthy food and drink options.",
+        "createdAt": "2025-08-10T09:45:10.190Z",
+        "updatedAt": "2025-08-10T09:45:10.190Z",
+        "__v": 0
+    },
+    {
+        "_id": "68986a3033139cc4f5cafdb7",
+        "name": "First Aid",
+        "slug": "first-aid",
+        "description": "Band-aids, antiseptics, and emergency supplies.",
+        "createdAt": "2025-08-10T09:45:20.209Z",
+        "updatedAt": "2025-08-10T09:45:20.209Z",
+        "__v": 0
+    },
+    {
+        "_id": "68986a3933139cc4f5cafdba",
+        "name": "Women's Health",
+        "slug": "women-s-health",
+        "description": "Products specific to women's health and wellness.",
+        "createdAt": "2025-08-10T09:45:29.837Z",
+        "updatedAt": "2025-08-10T09:45:29.837Z",
+        "__v": 0
+    },
+    {
+        "_id": "68986a4533139cc4f5cafdbd",
+        "name": "Pet Care",
+        "slug": "pet-care",
+        "description": "Health and wellness products for pets.",
+        "createdAt": "2025-08-10T09:45:41.924Z",
+        "updatedAt": "2025-08-10T09:45:41.924Z",
+        "__v": 0
+    }
+]
+

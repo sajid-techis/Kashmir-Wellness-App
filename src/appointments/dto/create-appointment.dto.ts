@@ -1,48 +1,28 @@
 // File: kashmir-wellness-backend/src/appointments/dto/create-appointment.dto.ts
 
-import { IsNotEmpty, IsMongoId, IsDateString, IsString, IsIn, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsMongoId, IsDateString, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { AppointmentType } from '../../schemas/appointment.schema';
 
 export class CreateAppointmentDto {
-    @ApiProperty({ description: 'The ID of the service provider (Doctor, Lab, or Hospital).' })
-    @IsMongoId()
-    @IsNotEmpty()
-    providerId: string;
+  @ApiProperty({ description: 'The ID of the provider (Doctor, Lab, etc.)' })
+  @IsMongoId()
+  @IsNotEmpty()
+  providerId: string;
 
-    @ApiProperty({ description: 'The model name of the provider: "Doctor", "Lab", or "Hospital".' })
-    @IsString()
-    @IsNotEmpty()
-    providerModel: string;
+  @ApiProperty({ description: 'The model name of the provider (e.g., Doctor, Lab)', example: 'Doctor' })
+  @IsString()
+  @IsNotEmpty()
+  providerModel: string;
 
-    @ApiProperty({ description: 'The date of the appointment (ISO 8601 format, e.g., "YYYY-MM-DD").' })
-    @IsDateString()
-    @IsNotEmpty()
-    appointmentDate: string;
+  @ApiProperty({ description: 'The date of the appointment in ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)', example: '2025-12-20T00:00:00.000Z' })
+  @IsDateString()
+  @IsNotEmpty()
+  appointmentDate: string;
 
-    @ApiProperty({ description: 'The time of the appointment (e.g., "10:30").' })
-    @IsString()
-    @IsNotEmpty()
-    appointmentTime: string;
-
-    @ApiProperty({ description: 'The type of appointment being booked.' })
-    @IsString()
-    @IsNotEmpty()
-    @IsIn([
-        AppointmentType.DoctorOnline,
-        AppointmentType.DoctorOffline,
-        AppointmentType.Lab,
-        AppointmentType.Hospital,
-    ])
-    appointmentType: AppointmentType;
-
-    @ApiProperty({ description: 'The name of the service being booked, e.g., "Cardiology" or "Blood Test".' })
-    @IsString()
-    @IsNotEmpty()
-    serviceName: string; // <-- NEW FIELD
-
-    @ApiProperty({ description: 'Any additional notes for the appointment.', required: false })
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @ApiProperty({ description: 'The start time of the appointment slot in HH:mm format', example: '14:30' })
+  @IsString()
+  @IsNotEmpty()
+  // Use a regular expression to ensure the time is in the correct format
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'startTime must be in HH:mm format' })
+  startTime: string;
 }

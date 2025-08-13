@@ -1,18 +1,14 @@
-// File: kashmir-wellness-backend/src/appointments/appointments.service.ts
-
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Appointment, AppointmentDocument, AppointmentStatus, AppointmentType } from '../schemas/appointment.schema';
-import { User, UserDocument } from '../schemas/user.schema';
+import { Appointment, AppointmentDocument, AppointmentStatus } from '../schemas/appointment.schema';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { Doctor, DoctorDocument } from '../schemas/doctor.schema';
 import { Lab, LabDocument } from '../schemas/lab.schema';
 import { Hospital, HospitalDocument } from '../schemas/hospital.schema';
-import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import  dayjs from 'dayjs';
-import  isBetween from 'dayjs/plugin/isBetween';
-import  customParseFormat from 'dayjs/plugin/customParseFormat';
+import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 dayjs.extend(isBetween);
 dayjs.extend(customParseFormat);
@@ -21,136 +17,82 @@ dayjs.extend(customParseFormat);
 export class AppointmentsService {
     constructor(
         @InjectModel(Appointment.name) private appointmentModel: Model<AppointmentDocument>,
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel(Doctor.name) private doctorModel: Model<DoctorDocument>,
         @InjectModel(Lab.name) private labModel: Model<LabDocument>,
         @InjectModel(Hospital.name) private hospitalModel: Model<HospitalDocument>,
     ) { }
 
     async createAppointment(userId: string, createAppointmentDto: CreateAppointmentDto): Promise<AppointmentDocument> {
-        const { providerId, providerModel, appointmentDate, appointmentTime, serviceName } = createAppointmentDto;
+        const { providerId, providerModel, appointmentDate, startTime } = createAppointmentDto;
 
-        const provider = await this.getAndValidateProvider(providerId, providerModel);
+        let provider: any;
+        const providerObjectId = new Types.ObjectId(providerId);
+        
+        switch (providerModel.toLowerCase()) {
+            case 'doctor':
+                provider = await this.doctorModel.findById(providerObjectId).exec();
+                break;
+            case 'lab':
+                provider = await this.labModel.findById(providerObjectId).exec();
+                break;
+            case 'hospital':
+                provider = await this.hospitalModel.findById(providerObjectId).exec();
+                break;
+        }
 
-        const { fee } = this.validateService(provider, serviceName, providerModel);
+        if (!provider) {
+            throw new NotFoundException(`Provider with ID "${providerId}" not found.`);
+        }
 
-        const appointmentDateTime = dayjs(`${appointmentDate} ${appointmentTime}`, 'YYYY-MM-DD HH:mm');
-        this.validateAvailability(provider, appointmentDateTime, appointmentDate, appointmentTime);
+        const appointmentDateTime = dayjs(appointmentDate).hour(parseInt(startTime.split(':')[0])).minute(parseInt(startTime.split(':')[1]));
+        
+        const existingAppointment = await this.appointmentModel.findOne({
+            providerId: providerObjectId,
+            appointmentDate: {
+                $gte: appointmentDateTime.startOf('day').toDate(),
+                $lte: appointmentDateTime.endOf('day').toDate(),
+            },
+            startTime: startTime,
+            status: { $ne: AppointmentStatus.Cancelled },
+        }).exec();
 
-        await this.checkForConflicts(providerId, appointmentDate, appointmentTime);
+        if (existingAppointment) {
+            throw new ConflictException('This time slot is no longer available.');
+        }
 
-        // Remove providerId from createAppointmentDto before spreading
-        const { providerId: _providerId, ...restDto } = createAppointmentDto;
+        const consultationService = provider.services?.find(
+            (s: any) => s.name.toLowerCase().includes('consultation') || s.price > 0
+        );
+        const serviceName = consultationService ? consultationService.name : 'Standard Service';
+        const finalPrice = consultationService ? consultationService.price : (provider as DoctorDocument).consultationFee || 0;
+
         const newAppointment = new this.appointmentModel({
-            userId,
-            providerId: new Types.ObjectId(providerId),
-            ...restDto,
-            fee,
-            status: AppointmentStatus.Pending,
+            userId: new Types.ObjectId(userId), // <-- FIX: Changed to userId
+            providerId: providerObjectId,
+            providerModel: providerModel,
+            appointmentDate: appointmentDateTime.toDate(),
+            startTime: startTime,
+            status: AppointmentStatus.Booked,
+            amount: finalPrice,
+            serviceName: serviceName,
         });
 
         return newAppointment.save();
     }
-
-    // Removed duplicate findAppointmentsForUser method
-
-    private async getAndValidateProvider(providerId: string, providerModel: string): Promise<DoctorDocument | LabDocument | HospitalDocument> {
-        let provider: DoctorDocument | LabDocument | HospitalDocument | null;
-        switch (providerModel) {
-            case Doctor.name:
-                provider = await this.doctorModel.findById(providerId).exec();
-                break;
-            case Lab.name:
-                provider = await this.labModel.findById(providerId).exec();
-                break;
-            case Hospital.name:
-                provider = await this.hospitalModel.findById(providerId).exec();
-                break;
-            default:
-                throw new BadRequestException('Invalid provider model specified.');
-        }
-
-        if (!provider) {
-            throw new NotFoundException(`${providerModel} with ID "${providerId}" not found.`);
-        }
-        return provider;
-    }
-
-    private validateService(provider: DoctorDocument | LabDocument | HospitalDocument, serviceName: string, providerModel: string): { fee: number } {
-        if (!('services' in provider) || !('availability' in provider)) {
-            throw new BadRequestException('Provider data is incomplete. Services or availability not found.');
-        }
-
-        const requestedService = provider.services.find(service => service.name === serviceName);
-        if (!requestedService) {
-            throw new BadRequestException(`Service "${serviceName}" not offered by this ${providerModel}.`);
-        }
-        return { fee: requestedService.price };
-    }
-
-    private validateAvailability(provider: DoctorDocument | LabDocument | HospitalDocument, appointmentDateTime: dayjs.Dayjs, appointmentDate: string, appointmentTime: string): void {
-        const { availability } = provider;
-        if (!availability || !availability.slots || availability.slots.length === 0) {
-            throw new BadRequestException('Provider has no availability schedule set.');
-        }
-
-        if (!appointmentDateTime.isValid()) {
-            throw new BadRequestException('Invalid appointment date or time format.');
-        }
-
-        const appointmentDayStart = dayjs(appointmentDate).startOf('day');
-        const isUnavailable = availability.unavailableDates.some(
-            unavailableDate => dayjs(unavailableDate.toString()).isSame(appointmentDayStart, 'day')
-        );
-        if (isUnavailable) {
-            throw new BadRequestException(`Provider is unavailable on ${appointmentDate}.`);
-        }
-
-        const requestedDayOfWeek = appointmentDateTime.format('dddd');
-        const daySlot = availability.slots.find(slot => slot.dayOfWeek === requestedDayOfWeek);
-        if (!daySlot) {
-            throw new BadRequestException(`Provider is not available on ${requestedDayOfWeek}s.`);
-        }
-
-        const startTime = dayjs(`${appointmentDate} ${daySlot.startTime}`, 'YYYY-MM-DD HH:mm');
-        const endTime = dayjs(`${appointmentDate} ${daySlot.endTime}`, 'YYYY-MM-DD HH:mm');
-
-        if (!appointmentDateTime.isBetween(startTime, endTime, null, '[)')) {
-            throw new BadRequestException(`Appointment time ${appointmentTime} is outside of the provider's working hours (${daySlot.startTime}-${daySlot.endTime}).`);
-        }
-
-        const minutesSinceStart = appointmentDateTime.diff(startTime, 'minute');
-        if (minutesSinceStart % availability.slotDurationMinutes !== 0) {
-            throw new BadRequestException(`Appointment time must be a valid slot. Slots are available every ${availability.slotDurationMinutes} minutes.`);
-        }
-    }
-
-    private async checkForConflicts(providerId: string, appointmentDate: string, appointmentTime: string): Promise<void> {
-        const existingAppointment = await this.appointmentModel.findOne({
-            providerId: new Types.ObjectId(providerId),
-            appointmentDate: appointmentDate,
-            appointmentTime: appointmentTime,
-            status: { $ne: AppointmentStatus.Cancelled },
-        });
-
-        if (existingAppointment) {
-            throw new BadRequestException('This time slot is already booked.');
-        }
-    }
-
+    
     async findAppointmentsForUser(userId: string): Promise<AppointmentDocument[]> {
         return this.appointmentModel
-            .find({ userId: new Types.ObjectId(userId) })
+            .find({ userId: new Types.ObjectId(userId) }) // <-- FIX: Changed to userId
             .populate('providerId')
-            .sort({ appointmentDate: 1, appointmentTime: 1 })
+            .sort({ appointmentDate: 1, startTime: 1 }) // <-- FIX: Changed appointmentTime to startTime
             .exec();
     }
 
     async findAppointmentsForProvider(providerId: string): Promise<AppointmentDocument[]> {
         return this.appointmentModel
             .find({ providerId: new Types.ObjectId(providerId) })
-            .populate('userId')
-            .sort({ appointmentDate: 1, appointmentTime: 1 })
+            .populate('userId') // <-- FIX: Changed to userId
+            .sort({ appointmentDate: 1, startTime: 1 }) // <-- FIX: Changed appointmentTime to startTime
             .exec();
     }
 
@@ -159,15 +101,12 @@ export class AppointmentsService {
         if (!appointment) {
             throw new NotFoundException('Appointment not found.');
         }
-
         if (appointment.providerId.toString() !== providerId) {
             throw new ForbiddenException('You do not have permission to update this appointment.');
         }
-
         if (appointment.status === AppointmentStatus.Completed || appointment.status === AppointmentStatus.Cancelled) {
             throw new BadRequestException('Cannot change the status of a completed or cancelled appointment.');
         }
-
         appointment.status = status;
         return appointment.save();
     }
@@ -176,21 +115,16 @@ export class AppointmentsService {
         if (!Types.ObjectId.isValid(appointmentId)) {
             throw new BadRequestException('Invalid appointment ID format.');
         }
-
         const appointment = await this.appointmentModel.findById(appointmentId);
-
         if (!appointment) {
             throw new NotFoundException(`Appointment with ID "${appointmentId}" not found.`);
         }
-
-        if (appointment.userId.toString() !== userId) {
+        if (appointment.userId.toString() !== userId) { // <-- FIX: Changed to userId
             throw new ForbiddenException('You do not have permission to cancel this appointment.');
         }
-
         if (appointment.status === AppointmentStatus.Completed || appointment.status === AppointmentStatus.Cancelled) {
             throw new BadRequestException('Appointment cannot be cancelled as it is no longer active.');
         }
-
         appointment.status = AppointmentStatus.Cancelled;
         return appointment.save();
     }

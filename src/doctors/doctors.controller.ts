@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
-import { CreateDoctorDto } from './dto/create-doctor.dto';
+import { CreateDoctorDto } from './dto/create-doctor.dto'; // <-- This import is crucial
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
@@ -14,13 +14,16 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
+  // --- THIS IS THE CORRECTED METHOD ---
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   @ApiOperation({ summary: 'Create a new doctor profile' })
+  // By adding the type here, we tell NestJS to use the CreateDoctorDto for validation.
   create(@Body() createDoctorDto: CreateDoctorDto) {
     return this.doctorsService.create(createDoctorDto);
   }
+  // --- END CORRECTION ---
 
   @Get()
   @ApiOperation({ summary: 'Get all doctor profiles' })

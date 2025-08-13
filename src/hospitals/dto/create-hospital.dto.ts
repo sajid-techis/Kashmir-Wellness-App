@@ -4,9 +4,7 @@ import { IsString, IsNotEmpty, IsEmail, IsPhoneNumber, IsOptional, IsBoolean, Is
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { HospitalServiceDto, CreateHospitalAvailabilityDto } from './availability.dto';
-import { GeoPointDto } from '../../common/dto/location.dto'; // <-- NEW: Import the shared DTO
-
-// The old internal GeoPointDto class has been REMOVED from this file.
+import { GeoPointDto } from '../../common/dto/location.dto';
 
 export class CreateHospitalDto {
     @ApiProperty()
@@ -29,13 +27,21 @@ export class CreateHospitalDto {
     @IsNotEmpty()
     address: string;
 
-    @ApiProperty({ type: GeoPointDto }) // <-- Use the imported DTO
+    @ApiProperty({ type: GeoPointDto })
     @IsNotEmpty()
-    @ValidateNested() // <-- Add ValidateNested for the sub-DTO
+    @ValidateNested()
     @Type(() => GeoPointDto)
     location: GeoPointDto;
 
-    // ... rest of the file remains the same
+    // --- THIS IS THE FIX ---
+    // Add the departments property to allow it in the request body
+    @ApiProperty({ type: [String], required: false, description: 'List of departments in the hospital' })
+    @IsArray()
+    @IsString({ each: true }) // Validates that each item in the array is a string
+    @IsOptional()
+    departments?: string[];
+    // --- END FIX ---
+
     @ApiProperty({ required: false, type: [HospitalServiceDto] })
     @IsOptional()
     @IsArray()

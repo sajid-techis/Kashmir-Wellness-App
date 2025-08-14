@@ -1,11 +1,13 @@
 // File: kashmir-wellness-backend/src/app.module.ts
 
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { redisStore } from 'cache-manager-redis-yet';
 import { validationSchema } from './common/validation'; // <-- NEW: Import validation schema
 
 // Import ALL your modules here
@@ -39,6 +41,16 @@ import { PaymentsModule } from './payments/payments.module';
         uri: configService.get<string>('MONGODB_URI'),
       }),
       inject: [ConfigService],
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore({
+          url: configService.get<string>('REDIS_URI'),
+        }),
+      }),
     }),
     RedisModule.forRootAsync({
       imports: [ConfigModule],

@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, InternalServerErrorException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Cache } from 'cache-manager';
 import { User, UserDocument } from '../schemas/user.schema'; // Make sure UserDocument is imported
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   /**
    * Creates a new user. Expects `createUserDto.password` to be already hashed.
@@ -32,10 +36,16 @@ export class UsersService {
   }
 
   async findOneById(id: string): Promise<UserDocument | null> { // <--- Also change this
+    const cacheKey = `user:${id}`;
+    const cached = await this.cacheManager.get<UserDocument>(cacheKey);
+    if (cached) {
+      return cached;
+    }
     const user = await this.userModel.findById(id).select('-password').exec();
     if (!user) {
       return null;
     }
+    await this.cacheManager.set(cacheKey, user);
     return user;
   }
 
@@ -57,6 +67,7 @@ export class UsersService {
       if (!updatedUser) {
         return null;
       }
+      await this.cacheManager.del(`user:${id}`);
       return updatedUser;
     } catch (error) {
       if (error.code === 11000) {
@@ -72,6 +83,7 @@ export class UsersService {
       if (!deletedUser) {
         return null;
       }
+      await this.cacheManager.del(`user:${id}`);
       return deletedUser;
     } catch (error) {
       throw new InternalServerErrorException('Failed to delete user.', error.message);

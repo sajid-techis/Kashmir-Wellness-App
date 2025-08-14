@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Argon2Module } from '@nestjs/argon2';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -22,6 +23,7 @@ import { User, UserSchema } from '../schemas/user.schema';
   imports: [
     UsersModule,
     PassportModule,
+    Argon2Module,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

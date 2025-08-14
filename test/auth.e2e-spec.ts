@@ -6,7 +6,7 @@ import { Connection, Model } from 'mongoose';
 import { getModelToken, getConnectionToken } from '@nestjs/mongoose'; // <-- FIX: Import getConnectionToken
 import { User, UserDocument } from '../src/schemas/user.schema';
 import { Doctor, DoctorDocument } from '../src/schemas/doctor.schema';
-import * as bcrypt from 'bcryptjs';
+import { Argon2Service } from '@nestjs/argon2';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '../src/common/enums/role.enum';
 
@@ -16,6 +16,7 @@ describe('Authentication (e2e)', () => {
   let doctorModel: Model<DoctorDocument>;
   let connection: Connection;
   let jwtService: JwtService;
+  const argon2 = new Argon2Service();
 
   const testUser = {
     email: 'testprovider@example.com',
@@ -51,7 +52,7 @@ describe('Authentication (e2e)', () => {
 
   describe('/auth/provider/login (POST)', () => {
     it('should correctly log in a user with a provider profile and return a valid JWT', async () => {
-      const hashedPassword = await bcrypt.hash(testUser.password, 10);
+      const hashedPassword = await argon2.hash(testUser.password);
       const user = await userModel.create({
         email: testUser.email,
         password: hashedPassword,
@@ -93,7 +94,7 @@ describe('Authentication (e2e)', () => {
     });
 
     it('should fail if the user is not a provider', async () => {
-        const hashedPassword = await bcrypt.hash(testUser.password, 10);
+        const hashedPassword = await argon2.hash(testUser.password);
         await userModel.create({
           email: testUser.email,
           password: hashedPassword,

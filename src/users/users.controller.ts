@@ -17,7 +17,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import * as bcrypt from 'bcryptjs';
+import { Argon2Service } from '@nestjs/argon2';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // Ensure this path is correct
 import { RolesGuard } from '../common/guards/roles.guard'; // <-- IMPORT RolesGuard
 import { Roles } from '../common/decorators/roles.decorator'; // <-- IMPORT Roles decorator
@@ -37,7 +37,10 @@ interface AuthenticatedRequest extends Request {
 // Apply JwtAuthGuard globally to the controller, then RolesGuard for specific methods
 @UseGuards(JwtAuthGuard, RolesGuard) // <-- Apply both guards here
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly argon2: Argon2Service,
+  ) {}
 
   // NOTE: This POST /users endpoint for creating users is typically for ADMINS.
   // Public registration usually goes through AuthController.
@@ -45,7 +48,7 @@ export class UsersController {
   @Roles(Role.Admin) // <-- Only Admins can create users directly
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const hashedPassword = await this.argon2.hash(createUserDto.password);
     const user = await this.usersService.create({
       ...createUserDto,
       password: hashedPassword,

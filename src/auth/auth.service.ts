@@ -4,7 +4,7 @@ import { Injectable, ConflictException, NotFoundException, UnauthorizedException
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcryptjs';
+import { Argon2Service } from '@nestjs/argon2';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 
@@ -24,6 +24,7 @@ export class AuthService {
     private jwtService: JwtService,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
+    private argon2: Argon2Service,
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -36,7 +37,7 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException('User with this email already exists.');
     }
-    const hashedPassword = await bcrypt.hash(createAuthDto.password, 10);
+    const hashedPassword = await this.argon2.hash(createAuthDto.password);
     const userObjectForCreation: CreateUserDto = {
       email: createAuthDto.email,
       password: hashedPassword,
@@ -56,7 +57,7 @@ export class AuthService {
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials.');
     }
-    const isPasswordValid = await bcrypt.compare(loginAuthDto.password, user.password);
+    const isPasswordValid = await this.argon2.verify(user.password, loginAuthDto.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials.');
     }
@@ -72,7 +73,7 @@ export class AuthService {
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials.');
     }
-    const isPasswordValid = await bcrypt.compare(loginAuthDto.password, user.password);
+    const isPasswordValid = await this.argon2.verify(user.password, loginAuthDto.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials.');
     }

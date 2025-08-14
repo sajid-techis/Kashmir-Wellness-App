@@ -1,6 +1,7 @@
 // File: kashmir-wellness-backend/src/app.module.ts
 
 import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -33,6 +34,7 @@ import { PaymentsModule } from './payments/payments.module';
       envFilePath: '.env',
       validationSchema, // <-- NEW: Add the validation schema here
     }),
+    ThrottlerModule.forRoot({ ttl: 60, limit: 10 }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
